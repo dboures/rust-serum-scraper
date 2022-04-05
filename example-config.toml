@@ -1,0 +1,29 @@
+bind_ws_addr = "127.0.0.1:7070"
+serum_program_id = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
+
+[source]
+dedup_queue_size = 50000
+rpc_ws_url = ""
+
+[[source.grpc_sources]]
+name = "server"
+connection_string = "http://[::1]:10000"
+retry_connection_sleep_secs = 30
+
+
+[source.snapshot]
+rpc_http_url = ""
+program_id = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
+
+# [[markets]]
+# name = "BTC-PERP"
+# event_queue = ""
+
+# [[markets]]
+# name = "ETH-PERP"
+# event_queue = ""
+
+[[markets]]
+name = "SOL/USDC"
+market = "9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT"
+event_queue = "5KKsLVU6TcbVDK4BS6K1DGDxnh4Q9xjYJ8XaDCG5t8ht"

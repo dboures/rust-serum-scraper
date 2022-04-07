@@ -21,8 +21,6 @@ arrayref = "*"
 bytemuck = "*"
 fixed = { version = "*", features = ["serde"] }
 
-
-
 serde = "1.0.130"
 serde_derive = "1.0.130"
 serde_json = "1.0.68"

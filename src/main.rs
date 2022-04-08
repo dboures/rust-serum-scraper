@@ -57,7 +57,11 @@ async fn main() -> anyhow::Result<()> {
     solana_logger::setup_with_default("info");
     info!("startup");
 
+    let checkpoints = CheckpointMap::new(Mutex::new(HashMap::new()));
     let peers = PeerMap::new(Mutex::new(HashMap::new()));
+
+    let checkpoints_ref_thread = checkpoints.clone();
+    let peers_ref_thread = peers.clone();
 
     let rpc_client = RpcClient::new_with_commitment(
         String::from("https://ssc-dao.genesysgo.net/"),
@@ -67,6 +71,34 @@ async fn main() -> anyhow::Result<()> {
     //let serum_market = Pubkey::from_str("9wFFyRfZBsuAha4YcuxcXLKwMxJR43S7fPfQLusDBzvT")?;
     let q_pubkey = Pubkey::from_str("5KKsLVU6TcbVDK4BS6K1DGDxnh4Q9xjYJ8XaDCG5t8ht")?;
 
+    // filleventfilter websocket sink
+    tokio::spawn(async move {
+        pin!(fill_receiver);
+        loop {
+            let message = fill_receiver.recv().await.unwrap();
+            match message {
+                FillEventFilterMessage::Update(update) => {
+                    info!("ws update {} {:?} fill", update.market, update.status);
+
+                    let mut peer_copy = peers_ref_thread.lock().unwrap().clone();
+
+                    for (k, v) in peer_copy.iter_mut() {
+                        debug!("  > {}", k);
+
+                        let json = serde_json::to_string(&update);
+
+                        v.send(Message::Text(json.unwrap())).await.unwrap()
+                    }
+                }
+                FillEventFilterMessage::Checkpoint(checkpoint) => {
+                    checkpoints_ref_thread
+                        .lock()
+                        .unwrap()
+                        .insert(checkpoint.queue.clone(), checkpoint);
+                }
+            }
+        }
+    });
 
     // open websocket
     info!("ws listen: {}", config.bind_ws_addr);
@@ -76,11 +108,6 @@ async fn main() -> anyhow::Result<()> {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(handle_connection(peers.clone(), stream, addr));
-            
-            // When connection is made, send them the current event queue
-            // NEXT: relay updates from changing ev Q account data 
-            let q_vec: Vec<u8> = rpc_client.get_account_data(&q_pubkey).unwrap();
-            send_fills_in_queue(q_vec, peers.clone()).await.unwrap();
         }
     });
 
@@ -113,7 +140,9 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
     result_forward.unwrap();
 }
 
-async fn send_fills_in_queue(queue_data: Vec<u8>, peers_ref_thread: Arc<Mutex<HashMap<SocketAddr, UnboundedSender<Message>>>>) -> anyhow::Result<()> {
+async fn deserialize_queue(
+    queue_data: Vec<u8>
+) -> anyhow::Result<(SerumEventQueueHeader, Vec<SerumEvent>)> {
     //deserialize the header
     const HEADER_SIZE: usize = 37; //size_of::<SerumEventQueueHeader>();
     const EVENT_SIZE: usize = 88; //size_of::<SerumEvent>();
@@ -132,6 +161,7 @@ async fn send_fills_in_queue(queue_data: Vec<u8>, peers_ref_thread: Arc<Mutex<Ha
         ((header.head + header.count) % u32::try_from(alloc_len)?) * u32::try_from(EVENT_SIZE)?; // start at header
 
     // go through the whole ring buffer, output fills only
+    let fills: Vec<SerumEvent> = Vec::new();
     for i in 0..alloc_len {
         if start_byte + u32::try_from(EVENT_SIZE)? > u32::try_from(EVENT_LENGTH)? {
             start_byte = 0;
@@ -152,25 +182,17 @@ async fn send_fills_in_queue(queue_data: Vec<u8>, peers_ref_thread: Arc<Mutex<Ha
                 fee_tier: _,
                 client_order_id: _,
             } => {
-                //send to websocket here
-                // info!("side: {:?}, maker: {:?}, native_qty_paid: {:?}, native_qty_received: {:?}, native_fee_or_rebate: {:?},", side, maker, native_qty_paid, native_qty_received, native_fee_or_rebate);
-                info!("ws update {:?} fill", order_id);
-
-                let mut peer_copy = peers_ref_thread.lock().unwrap().clone();
-
-                for (k, v) in peer_copy.iter_mut() {
-                    debug!("  > {}", k);
-
-                    let json = serde_json::to_string(&order_id);
-
-                    v.send(Message::Text(json.unwrap())).await.unwrap()
-                }
-                
+                fills.push(event);
             }
             EventView::Out { .. } => {}
         };
         start_byte = (start_byte + u32::try_from(EVENT_SIZE)?) % u32::try_from(EVENT_LENGTH)?;
         // info!("start {:?}, seqnum: {:?}", start, header.seq_num + u32::try_from(i)?);
     }
-    Ok(())
+    Ok((header, fills))
 }
+
+// When connection is made, send them the current event queue
+// NEXT: relay updates from changing ev Q account data
+// let q_vec: Vec<u8> = rpc_client.get_account_data(&q_pubkey).unwrap();
+// send_fills_in_queue(q_vec, peers.clone()).await.unwrap();

@@ -21,6 +21,12 @@ arrayref = "*"
 bytemuck = "*"
 fixed = { version = "*", features = ["serde"] }
 
+tokio = { version = "1", features = ["full"] }
+
+async-stream = "0.2"
+async-channel = "1.6"
+async-trait = "0.1"
+
 serde = "1.0.130"
 serde_derive = "1.0.130"
 serde_json = "1.0.68"

@@ -3421,6 +3421,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayref",
+ "async-channel",
+ "async-stream 0.2.1",
+ "async-trait",
  "base64 0.13.0",
  "bs58 0.4.0",
  "bytemuck",
@@ -3441,6 +3444,7 @@ dependencies = [
  "solana-account-decoder",
  "solana-client",
  "solana-sdk",
+ "tokio",
  "tonic",
  "tonic-build",
 ]

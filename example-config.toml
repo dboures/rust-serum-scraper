@@ -3,7 +3,7 @@ serum_program_id = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
 
 [source]
 dedup_queue_size = 50000
-rpc_ws_url = ""
+rpc_ws_url = "https://ssc-dao.genesysgo.net/"
 
 [[source.grpc_sources]]
 name = "server"

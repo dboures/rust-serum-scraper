@@ -1,6 +1,9 @@
 pub mod serum_fill_event_filter;
 pub mod chain_data;
+pub mod websocket_source;
 
+use solana_sdk::account::Account;
+use solana_sdk::pubkey::Pubkey;
 use {
     serde_derive::Deserialize,
 };
@@ -8,9 +11,31 @@ use {
 #[derive(Clone, Debug, Deserialize)]
 pub struct SourceConfig {
     pub dedup_queue_size: usize,
-    // pub grpc_sources: Vec<GrpcSourceConfig>,
-    // pub snapshot: SnapshotSourceConfig,
+    pub grpc_sources: Vec<GrpcSourceConfig>,
+    pub snapshot: SnapshotSourceConfig,
     pub rpc_ws_url: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct GrpcSourceConfig {
+    pub name: String,
+    pub connection_string: String,
+    pub retry_connection_sleep_secs: u64,
+    pub tls: Option<TlsConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SnapshotSourceConfig {
+    pub rpc_http_url: String,
+    pub program_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TlsConfig {
+    pub ca_cert_path: String,
+    pub client_cert_path: String,
+    pub client_key_path: String,
+    pub domain_name: String,
 }
 
 #[derive(Clone, PartialEq, Debug)]

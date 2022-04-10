@@ -17,15 +17,24 @@ solana-sdk = "=1.9.13"
 
 mango = { git = "https://github.com/blockworks-foundation/mango-v3" }
 serum_dex = { version = "0.5.5", git = "https://github.com/project-serum/serum-dex.git", default-features=false, features = ["no-entrypoint", "program"] }
+
 arrayref = "*"
 bytemuck = "*"
 fixed = { version = "*", features = ["serde"] }
 
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tokio-postgres = "0.7"
+postgres-types = { version = "0.2", features = ["array-impls", "derive"] }
+postgres-native-tls = "0.5"
+native-tls = "0.2"
 
-async-stream = "0.2"
-async-channel = "1.6"
-async-trait = "0.1"
+# postgres_query hasn't updated its crate in a while
+postgres_query = { git = "https://github.com/nolanderc/rust-postgres-query", rev = "b4422051c8a31fbba4a35f88004c1cefb1878dd5" }
+
+
+enumflags2 = "0.6.4"
+safe-transmute = "0.11.0"
 
 serde = "1.0.130"
 serde_derive = "1.0.130"
@@ -40,8 +49,14 @@ log = "0.4"
 rand = "0.7"
 anyhow = "1.0"
 bytes = "1.0"
-enumflags2 = "0.6.4"
-safe-transmute = "0.11.0"
+
+futures = "0.3.17"
+futures-core = "0.3"
+futures-util = "0.3"
+
+async-stream = "0.2"
+async-channel = "1.6"
+async-trait = "0.1"
 
 [build-dependencies]
 tonic-build = "0.6"

@@ -236,6 +236,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4361135be9122e0870de935d7c439aef945b9f9ddd4199a553b5270b49c82a27"
 
 [[package]]
+name = "array-init"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6945cc5422176fc5e602e590c2878d2c2acd9a4fe20a4baa7c28022521698ec6"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2548,6 +2554,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1df8c4ec4b0627e53bdf214615ad287367e482558cf84b109250b37464dc03ae"
 
 [[package]]
+name = "postgres-derive"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a269d4442ff2c409dd0b854e9d4aa37fcd28237090e64bda7284b6e4731fb409"
+dependencies = [
+ "proc-macro2 1.0.36",
+ "quote 1.0.17",
+ "syn 1.0.90",
+]
+
+[[package]]
+name = "postgres-native-tls"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d442770e2b1e244bb5eb03b31c79b65bb2568f413b899eaba850fa945a65954"
+dependencies = [
+ "futures 0.3.21",
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "postgres-protocol"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2571,9 +2601,37 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04619f94ba0cc80999f4fc7073607cb825bc739a883cb6d20900fc5e009d6b0d"
 dependencies = [
+ "array-init",
  "bytes 1.1.0",
  "fallible-iterator",
+ "postgres-derive",
  "postgres-protocol",
+]
+
+[[package]]
+name = "postgres_query"
+version = "0.3.3"
+source = "git+https://github.com/nolanderc/rust-postgres-query?rev=b4422051c8a31fbba4a35f88004c1cefb1878dd5#b4422051c8a31fbba4a35f88004c1cefb1878dd5"
+dependencies = [
+ "async-trait",
+ "futures 0.3.21",
+ "postgres-types",
+ "postgres_query_macro",
+ "proc-macro-hack",
+ "serde",
+ "thiserror",
+ "tokio-postgres",
+]
+
+[[package]]
+name = "postgres_query_macro"
+version = "0.3.3"
+source = "git+https://github.com/nolanderc/rust-postgres-query?rev=b4422051c8a31fbba4a35f88004c1cefb1878dd5#b4422051c8a31fbba4a35f88004c1cefb1878dd5"
+dependencies = [
+ "proc-macro-hack",
+ "proc-macro2 1.0.36",
+ "quote 1.0.17",
+ "syn 1.0.90",
 ]
 
 [[package]]
@@ -2624,6 +2682,12 @@ dependencies = [
  "quote 1.0.17",
  "version_check 0.9.4",
 ]
+
+[[package]]
+name = "proc-macro-hack"
+version = "0.5.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
@@ -3430,10 +3494,17 @@ dependencies = [
  "bytes 1.1.0",
  "enumflags2",
  "fixed",
+ "futures 0.3.21",
+ "futures-core",
+ "futures-util",
  "jsonrpc-core",
  "jsonrpc-core-client",
  "log 0.4.16",
  "mango",
+ "native-tls",
+ "postgres-native-tls",
+ "postgres-types",
+ "postgres_query",
  "prost",
  "rand 0.7.3",
  "safe-transmute",
@@ -3445,6 +3516,8 @@ dependencies = [
  "solana-client",
  "solana-sdk",
  "tokio",
+ "tokio-postgres",
+ "tokio-stream",
  "tonic",
  "tonic-build",
 ]
@@ -4581,6 +4654,16 @@ dependencies = [
  "proc-macro2 1.0.36",
  "quote 1.0.17",
  "syn 1.0.90",
+]
+
+[[package]]
+name = "tokio-native-tls"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
+dependencies = [
+ "native-tls",
+ "tokio",
 ]
 
 [[package]]

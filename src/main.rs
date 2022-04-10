@@ -1,19 +1,12 @@
 // let's stream the serum event queue (fill events)
 // start with a websocket stream, and hopefully build up to a validator plugin
 
-use arrayref::array_ref;
+use std::sync::Arc;
 use enumflags2::BitFlags;
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{pin_mut, SinkExt, StreamExt};
 use log::*;
 use serde::Deserialize;
-use serum_dex::state::AccountFlag;
-use serum_dex::state::EventView;
-use serum_event_queue_lib::serum_fill_event_filter::EventFlag;
-use serum_event_queue_lib::serum_fill_event_filter::MarketConfig;
-use serum_event_queue_lib::serum_fill_event_filter::SerumEvent;
-use serum_event_queue_lib::serum_fill_event_filter::SerumEventQueueHeader;
-use serum_event_queue_lib::SourceConfig;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
@@ -22,12 +15,18 @@ use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::pin;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
+use serum_event_queue_lib::serum_fill_event_filter::FillCheckpoint;
+use serum_event_queue_lib::serum_fill_event_filter::FillEventFilterMessage;
+use serum_event_queue_lib::serum_fill_event_filter::MarketConfig;
+use serum_event_queue_lib::serum_fill_event_filter::deserialize_queue;
+use serum_event_queue_lib::serum_fill_event_filter::{self};
+use serum_event_queue_lib::SourceConfig;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -37,6 +36,7 @@ pub struct Config {
     pub serum_program_id: String,
 }
 
+type CheckpointMap = Arc<Mutex<HashMap<String, FillCheckpoint>>>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, UnboundedSender<Message>>>>;
 
 #[tokio::main]
@@ -62,6 +62,9 @@ async fn main() -> anyhow::Result<()> {
 
     let checkpoints_ref_thread = checkpoints.clone();
     let peers_ref_thread = peers.clone();
+
+    let (account_write_queue_sender, fill_receiver) =
+        serum_fill_event_filter::init(config.markets.clone()).await?;
 
     let rpc_client = RpcClient::new_with_commitment(
         String::from("https://ssc-dao.genesysgo.net/"),
@@ -108,10 +111,39 @@ async fn main() -> anyhow::Result<()> {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(handle_connection(peers.clone(), stream, addr));
+            
+            let q_vec: Vec<u8> = rpc_client.get_account_data(&q_pubkey).unwrap();
+            let (_header, fills) = deserialize_queue(q_vec).unwrap();
+            info!("fills length: {}", fills.len());
         }
     });
 
-    loop {}
+    info!(
+        "rpc connect: {}",
+        config
+            .source
+            .grpc_sources
+            .iter()
+            .map(|c| c.connection_string.clone())
+            .collect::<String>()
+    );
+    // let use_geyser = true;
+    // if use_geyser {
+    //     grpc_plugin_source::process_events(
+    //         &config.source,
+    //         account_write_queue_sender,
+    //         slot_queue_sender,
+    //         metrics_tx,
+    //     )
+    //     .await;
+    // } else {
+    websocket_source::process_events(
+        &config.source,
+        account_write_queue_sender,
+        // slot_queue_sender,
+    )
+    .await;
+    // }
 
     Ok(())
 }
@@ -138,58 +170,6 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
     info!("ws disconnected: {} err: {:?}", &addr, result_forward);
     peer_map.lock().unwrap().remove(&addr);
     result_forward.unwrap();
-}
-
-async fn deserialize_queue(
-    queue_data: Vec<u8>
-) -> anyhow::Result<(SerumEventQueueHeader, Vec<SerumEvent>)> {
-    //deserialize the header
-    const HEADER_SIZE: usize = 37; //size_of::<SerumEventQueueHeader>();
-    const EVENT_SIZE: usize = 88; //size_of::<SerumEvent>();
-    const EVENT_LENGTH: usize = 262119; //q_vec.len() - size_of::<SerumEventQueueHeader>();
-                                        //TODO: does the header change sizes?
-
-    let header_data = array_ref![queue_data, 0, HEADER_SIZE];
-    let event_data = array_ref![queue_data, HEADER_SIZE, EVENT_LENGTH];
-    let header: &SerumEventQueueHeader = bytemuck::from_bytes(header_data);
-    let flags: BitFlags<AccountFlag> = BitFlags::from_bits(header.account_flags).unwrap();
-    assert!(std::str::from_utf8(&header.blob)? == "serum");
-    assert!(flags.contains(AccountFlag::EventQueue) && flags.contains(AccountFlag::Initialized));
-
-    let alloc_len = (queue_data.len() - HEADER_SIZE) / EVENT_SIZE;
-    let mut start_byte =
-        ((header.head + header.count) % u32::try_from(alloc_len)?) * u32::try_from(EVENT_SIZE)?; // start at header
-
-    // go through the whole ring buffer, output fills only
-    let fills: Vec<SerumEvent> = Vec::new();
-    for i in 0..alloc_len {
-        if start_byte + u32::try_from(EVENT_SIZE)? > u32::try_from(EVENT_LENGTH)? {
-            start_byte = 0;
-        }
-        let event_bytes: &[u8; EVENT_SIZE] =
-            array_ref![event_data, usize::try_from(start_byte)?, EVENT_SIZE];
-        let event: &SerumEvent = bytemuck::from_bytes(event_bytes);
-        match event.as_view()? {
-            EventView::Fill {
-                side: _,
-                maker: _,
-                native_qty_paid: _,
-                native_qty_received: _,
-                native_fee_or_rebate: _,
-                order_id,
-                owner: _,
-                owner_slot: _,
-                fee_tier: _,
-                client_order_id: _,
-            } => {
-                fills.push(event);
-            }
-            EventView::Out { .. } => {}
-        };
-        start_byte = (start_byte + u32::try_from(EVENT_SIZE)?) % u32::try_from(EVENT_LENGTH)?;
-        // info!("start {:?}, seqnum: {:?}", start, header.seq_num + u32::try_from(i)?);
-    }
-    Ok((header, fills))
 }
 
 // When connection is made, send them the current event queue

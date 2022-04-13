@@ -10,11 +10,11 @@ serum-event-queue-lib = { path = "./lib" }
 jsonrpc-core = "18.0.0"
 jsonrpc-core-client = { version = "18.0.0", features = ["ws", "http"] }
 
-solana-client = "=1.9.13"
-solana-sdk = "=1.9.13"
-solana-logger = "=1.9.13"
+solana-client = "=1.10.7"
+solana-sdk = "=1.10.7"
+solana-logger = "=1.10.7"
+solana-rpc = "=1.10.7"
 
-mango = { git = "https://github.com/blockworks-foundation/mango-v3" }
 serum_dex = { version = "0.5.5", git = "https://github.com/project-serum/serum-dex.git", default-features=false, features = ["no-entrypoint", "program"] }
 arrayref = "*"
 bytemuck = "*"

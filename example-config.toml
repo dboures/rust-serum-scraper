@@ -7,12 +7,12 @@ rpc_ws_url = "https://ssc-dao.genesysgo.net/"
 
 [[source.grpc_sources]]
 name = "server"
-connection_string = "http://[::1]:10000"
+connection_string = "https://ssc-dao.genesysgo.net/"
 retry_connection_sleep_secs = 30
 
 
 [source.snapshot]
-rpc_http_url = ""
+rpc_http_url = "https://ssc-dao.genesysgo.net/"
 program_id = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
 
 # [[markets]]

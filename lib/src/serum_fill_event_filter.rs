@@ -301,7 +301,9 @@ pub async fn init(
         loop {
             tokio::select! {
                 Ok(account_write) = account_write_queue_receiver_c.recv() => {
+                    info!("account_write: {:?}", &account_write.pubkey);
                     if !relevant_pubkeys.contains(&account_write.pubkey) {
+                        info!("not relevatn: {:?}", relevant_pubkeys);
                         continue;
                     }
 
@@ -330,7 +332,7 @@ pub async fn init(
                     Ok(account_info) => {
                         // only process if the account state changed
                         let ev_q_version = (account_info.slot, account_info.write_version);
-                        trace!("evq {} write_version {:?}", mkt.name, ev_q_version);
+                        info!("evq {} write_version {:?}", mkt.name, ev_q_version);
                         if ev_q_version == *last_ev_q_version.unwrap_or(&(0, 0)) {
                             continue;
                         }

@@ -2,6 +2,8 @@ pub mod serum_fill_event_filter;
 pub mod chain_data;
 pub mod websocket_source;
 
+pub use chain_data::SlotStatus;
+
 use solana_sdk::account::Account;
 use solana_sdk::pubkey::Pubkey;
 use {
@@ -64,6 +66,18 @@ impl AccountWrite {
             data: account.data,
             is_selected: true,
         }
+    }
+}
+
+trait AnyhowWrap {
+    type Value;
+    fn map_err_anyhow(self) -> anyhow::Result<Self::Value>;
+}
+
+impl<T, E: std::fmt::Debug> AnyhowWrap for Result<T, E> {
+    type Value = T;
+    fn map_err_anyhow(self) -> anyhow::Result<Self::Value> {
+        self.map_err(|err| anyhow::anyhow!("{:?}", err))
     }
 }
 

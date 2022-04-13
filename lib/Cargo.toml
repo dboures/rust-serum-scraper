@@ -11,11 +11,12 @@ edition = "2021"
 jsonrpc-core = "18.0.0"
 jsonrpc-core-client = { version = "18.0.0", features = ["ws", "http"] }
 
-solana-client = "=1.9.13"
-solana-account-decoder = "=1.9.13"
-solana-sdk = "=1.9.13"
+solana-client = "=1.10.7"
+solana-account-decoder = "=1.10.7"
+solana-sdk = "=1.10.7"
+solana-gossip = "=1.10.7"
+solana-rpc = "=1.10.7"
 
-mango = { git = "https://github.com/blockworks-foundation/mango-v3" }
 serum_dex = { version = "0.5.5", git = "https://github.com/project-serum/serum-dex.git", default-features=false, features = ["no-entrypoint", "program"] }
 
 arrayref = "*"
@@ -24,14 +25,6 @@ fixed = { version = "*", features = ["serde"] }
 
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
-tokio-postgres = "0.7"
-postgres-types = { version = "0.2", features = ["array-impls", "derive"] }
-postgres-native-tls = "0.5"
-native-tls = "0.2"
-
-# postgres_query hasn't updated its crate in a while
-postgres_query = { git = "https://github.com/nolanderc/rust-postgres-query", rev = "b4422051c8a31fbba4a35f88004c1cefb1878dd5" }
-
 
 enumflags2 = "0.6.4"
 safe-transmute = "0.11.0"

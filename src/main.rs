@@ -1,12 +1,18 @@
 // let's stream the serum event queue (fill events)
 // start with a websocket stream, and hopefully build up to a validator plugin
 
-use std::sync::Arc;
 use enumflags2::BitFlags;
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{pin_mut, SinkExt, StreamExt};
 use log::*;
 use serde::Deserialize;
+use serum_event_queue_lib::serum_fill_event_filter::deserialize_queue;
+use serum_event_queue_lib::serum_fill_event_filter::FillCheckpoint;
+use serum_event_queue_lib::serum_fill_event_filter::FillEventFilterMessage;
+use serum_event_queue_lib::serum_fill_event_filter::MarketConfig;
+use serum_event_queue_lib::serum_fill_event_filter::{self};
+use serum_event_queue_lib::websocket_source;
+use serum_event_queue_lib::SourceConfig;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
@@ -15,18 +21,13 @@ use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::pin;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
-use serum_event_queue_lib::serum_fill_event_filter::FillCheckpoint;
-use serum_event_queue_lib::serum_fill_event_filter::FillEventFilterMessage;
-use serum_event_queue_lib::serum_fill_event_filter::MarketConfig;
-use serum_event_queue_lib::serum_fill_event_filter::deserialize_queue;
-use serum_event_queue_lib::serum_fill_event_filter::{self};
-use serum_event_queue_lib::SourceConfig;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
@@ -81,7 +82,10 @@ async fn main() -> anyhow::Result<()> {
             let message = fill_receiver.recv().await.unwrap();
             match message {
                 FillEventFilterMessage::Update(update) => {
-                    info!("ws update {} {:?} fill", update.market, update.status);
+                    info!(
+                        "MAIN: ws update from fill recvr  {} {:?} fill",
+                        update.market, update.status
+                    );
 
                     let mut peer_copy = peers_ref_thread.lock().unwrap().clone();
 
@@ -111,10 +115,6 @@ async fn main() -> anyhow::Result<()> {
         // Let's spawn the handling of each connection in a separate task.
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(handle_connection(peers.clone(), stream, addr));
-            
-            let q_vec: Vec<u8> = rpc_client.get_account_data(&q_pubkey).unwrap();
-            let (_header, fills) = deserialize_queue(q_vec).unwrap();
-            info!("fills length: {}", fills.len());
         }
     });
 
@@ -127,24 +127,7 @@ async fn main() -> anyhow::Result<()> {
             .map(|c| c.connection_string.clone())
             .collect::<String>()
     );
-    // let use_geyser = true;
-    // if use_geyser {
-    //     grpc_plugin_source::process_events(
-    //         &config.source,
-    //         account_write_queue_sender,
-    //         slot_queue_sender,
-    //         metrics_tx,
-    //     )
-    //     .await;
-    // } else {
-    websocket_source::process_events(
-        &config.source,
-        account_write_queue_sender,
-        // slot_queue_sender,
-    )
-    .await;
-    // }
-
+    websocket_source::process_events(&config.source, account_write_queue_sender).await;
     Ok(())
 }
 
